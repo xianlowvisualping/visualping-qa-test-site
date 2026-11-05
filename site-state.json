@@ -41,5 +41,16 @@
   "pdf_version": 1,
   "pdf_text": "This PDF changes only when you run the pdf command.",
   "js_message": "This message was rendered by JavaScript.",
-  "long_note": "This note at the bottom of the long page has not changed yet."
+  "long_note": "This note at the bottom of the long page has not changed yet.",
+  "sandboxes": {},
+  "lastmod": {
+    "": "2026-11-05T18:34:43Z",
+    "products/": "2026-11-05T18:34:43Z",
+    "blog/": "2026-11-05T18:34:43Z",
+    "js/": "2026-11-05T18:34:43Z",
+    "long/": "2026-11-05T18:34:43Z",
+    "files/report.pdf": "2026-11-05T18:34:43Z",
+    "blog/post-1/": "2026-11-05T18:34:43Z",
+    "blog/post-2/": "2026-11-05T18:34:43Z"
+  }
 }

@@ -5,6 +5,16 @@
 
   function $(id) { return document.getElementById(id); }
 
+  // Tests choose their noise with the query string. Values are only compared,
+  // never inserted into the page.
+  //   ?autoplay=1  carousel advances every 4 s (off by default)
+  //   ?popup=0     no newsletter pop-up (on by default)
+  //   ?cookies=0   no cookie banner (on by default)
+  var params = new URLSearchParams(window.location.search);
+  var AUTOPLAY = params.get("autoplay") === "1";
+  var POPUP = params.get("popup") !== "0";
+  var COOKIES = params.get("cookies") !== "0";
+
   function li(text) {
     var el = document.createElement("li");
     el.textContent = text;
@@ -20,7 +30,7 @@
       $("delayed").hidden = false;
     }, 5000);
 
-    // Carousel: auto-advances every 4 seconds, plus Prev/Next buttons.
+    // Carousel: Prev/Next buttons, and auto-advance every 4 seconds with ?autoplay=1.
     var slides = data.slides.map(function (text, i) {
       var el = document.createElement("div");
       el.className = "slide";
@@ -38,7 +48,7 @@
     }
     $("prev").addEventListener("click", function () { show(current - 1); });
     $("next").addEventListener("click", function () { show(current + 1); });
-    setInterval(function () { show(current + 1); }, 4000);
+    if (AUTOPLAY) { setInterval(function () { show(current + 1); }, 4000); }
 
     // Load more: 4 items at first, 4 more per click.
     var shown = 0;
@@ -71,9 +81,9 @@
   });
 
   // Pop-up after 2 seconds, cookie banner right away. Both reappear on every load.
-  setTimeout(function () { $("popup").hidden = false; }, 2000);
+  if (POPUP) { setTimeout(function () { $("popup").hidden = false; }, 2000); }
   $("popup-close").addEventListener("click", function () { $("popup").hidden = true; });
-  $("cookie-banner").hidden = false;
+  $("cookie-banner").hidden = !COOKIES;
   $("cookie-accept").addEventListener("click", function () { $("cookie-banner").hidden = true; });
   $("cookie-reject").addEventListener("click", function () { $("cookie-banner").hidden = true; });
 

@@ -65,12 +65,35 @@ def layout(title, root, body, csp=STATIC_CSP, theme="blue", script=None, extra_h
 """
 
 
-def page_home(s):
+def table_html(rows):
+    body = "\n".join(
+        f'        <tr><td>{i + 1}</td><td>{e(r["name"])}</td><td>${e(r["price"])}</td></tr>'
+        for i, r in enumerate(rows)
+    ) or '        <tr><td colspan="3"><em>No products.</em></td></tr>'
+    return f"""    <table id="product-table">
+      <thead><tr><th>#</th><th>Name</th><th>Price</th></tr></thead>
+      <tbody>
+{body}
+      </tbody>
+    </table>"""
+
+
+def page_home(s, root="", sandbox=None):
+    """The home page, or a sandbox copy of it at /t/NAME/ (which also gets its own table)."""
     news = "\n".join(f"        <li>{e(i)}</li>" for i in s["news"]) or "        <li><em>No news right now.</em></li>"
     keyword = f'<span id="keyword">{e(s["keyword"])}</span>' if s["keyword"] else '<span id="keyword"></span>'
     stock = ("in", "In stock") if s["in_stock"] else ("out", "Out of stock")
+    tag = f"Sandbox <strong>{e(sandbox)}</strong> &middot; owned by one test" if sandbox else \
+        "QA test page &middot; not a real store"
+    table = f"""
+
+    <section class="card" id="table">
+      <h2>Products</h2>
+{table_html(s["table"])}
+    </section>""" if sandbox else ""
+    counter = "Sandbox change" if sandbox else "Change"
     body = f"""  <header>
-    <p class="tag">QA test page &middot; not a real store</p>
+    <p class="tag">{tag}</p>
     <h1 id="headline">{e(s['headline'])}</h1>
     <p id="announcement">{e(s['announcement'])}</p>
     <p class="keyword-slot">Keyword: {keyword}</p>
@@ -79,7 +102,7 @@ def page_home(s):
   <main>
     <section class="card" id="product">
       <h2>Test Widget</h2>
-      <img id="product-image" src="images/widget-{e(s['image'])}.svg" alt="Product image" width="240" height="160">
+      <img id="product-image" src="{root}images/widget-{e(s['image'])}.svg" alt="Product image" width="240" height="160">
       <p class="price">$<span id="price">{e(s['price'])}</span></p>
       <p id="stock" class="stock {stock[0]}">{stock[1]}</p>
       <p>Quantity available: <span id="quantity">{int(s['quantity'])}</span></p>
@@ -91,30 +114,21 @@ def page_home(s):
       <ul id="news-list">
 {news}
       </ul>
-    </section>
+    </section>{table}
   </main>
 
   <footer>
-    <p>Change #<span id="change-number">{int(s['change_number'])}</span>
+    <p>{counter} #<span id="change-number">{int(s['change_number'])}</span>
        &middot; Last updated <time id="last-updated">{e(s['last_updated'] or 'never')}</time>
        &middot; Theme: <span id="theme">{e(s['theme'])}</span></p>
   </footer>"""
-    return layout("Home", "", body, theme=s["theme"])
+    return layout(f"Sandbox {sandbox}" if sandbox else "Home", root, body, theme=s["theme"])
 
 
 def page_products(s):
-    rows = "\n".join(
-        f'        <tr><td>{i + 1}</td><td>{e(r["name"])}</td><td>${e(r["price"])}</td></tr>'
-        for i, r in enumerate(s["table"])
-    ) or '        <tr><td colspan="3"><em>No products.</em></td></tr>'
     body = f"""  <main>
     <h1>Products</h1>
-    <table id="product-table">
-      <thead><tr><th>#</th><th>Name</th><th>Price</th></tr></thead>
-      <tbody>
-{rows}
-      </tbody>
-    </table>
+{table_html(s["table"])}
   </main>"""
     return layout("Products", "../", body, theme=s["theme"])
 
@@ -147,7 +161,8 @@ def page_blog_post(s, i):
 def page_js():
     body = """  <main>
     <h1>JavaScript page</h1>
-    <p class="note">Everything below is rendered by <code>app.js</code> from <code>data.json</code>. With JavaScript off, this page is nearly empty.</p>
+    <p class="note">Everything below is rendered by <code>app.js</code> from <code>data.json</code>. With JavaScript off, this page is nearly empty.
+      Add <code>?autoplay=1</code> to make the carousel move by itself, <code>?popup=0</code> to skip the pop-up, or <code>?cookies=0</code> to skip the cookie banner.</p>
 
     <section class="card">
       <h2>Rendered message</h2>
@@ -250,10 +265,17 @@ def page_404():
     return layout("Not found", BASE_PATH, body)
 
 
-def sitemap(s):
+def sitemap_paths(s):
+    # Sandboxes are deliberately left out so creating one never changes what a crawl sees.
     paths = ["", "products/", "blog/", "js/", "long/", "files/report.pdf"]
-    paths += [f"blog/post-{i + 1}/" for i in range(len(s["blog_posts"]))]
-    urls = "\n".join(f"  <url><loc>{xml_escape(BASE_URL + p)}</loc></url>" for p in paths)
+    return paths + [f"blog/post-{i + 1}/" for i in range(len(s["blog_posts"]))]
+
+
+def sitemap(s):
+    urls = "\n".join(
+        f"  <url><loc>{xml_escape(BASE_URL + p)}</loc><lastmod>{xml_escape(s['lastmod'][p])}</lastmod></url>"
+        for p in sitemap_paths(s)
+    )
     return ('<?xml version="1.0" encoding="UTF-8"?>\n'
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
             f"{urls}\n</urlset>\n")
@@ -298,38 +320,71 @@ def make_pdf(s):
     return bytes(out)
 
 
-def write(rel, content):
-    path = DOCS / rel
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if isinstance(content, bytes):
-        path.write_bytes(content)
-    else:
-        path.write_text(content, encoding="utf-8")
+SANDBOX_NAME = re.compile(r"[a-z0-9][a-z0-9-]{0,39}")
 
 
-def remove_stale_posts(count):
-    blog = DOCS / "blog"
-    if not blog.is_dir():
+def render_all(s):
+    """Every generated file except sitemap.xml, as {path under docs/: bytes}."""
+    files = {
+        "index.html": page_home(s),
+        "products/index.html": page_products(s),
+        "blog/index.html": page_blog_index(s),
+        "js/index.html": page_js(),
+        "js/data.json": js_data(s),
+        "long/index.html": page_long(s),
+        "redirect/index.html": page_redirect(),
+        "404.html": page_404(),
+        "files/report.pdf": make_pdf(s),
+    }
+    for i in range(len(s["blog_posts"])):
+        files[f"blog/post-{i + 1}/index.html"] = page_blog_post(s, i)
+    for name, sb in s["sandboxes"].items():
+        if SANDBOX_NAME.fullmatch(name):  # names are validated on creation; this is a second check
+            files[f"t/{name}/index.html"] = page_home(sb, root="../../", sandbox=name)
+    for name, svg in SVGS.items():
+        files[f"images/widget-{name}.svg"] = svg + "\n"
+    return {k: v if isinstance(v, bytes) else v.encode("utf-8") for k, v in files.items()}
+
+
+def sitemap_path_for(rel):
+    """Which sitemap entry a generated file belongs to, if any."""
+    if rel == "js/data.json":
+        return "js/"
+    if rel == "index.html":
+        return ""
+    if rel.endswith("/index.html"):
+        return rel[: -len("index.html")]
+    return rel
+
+
+def remove_stale_dirs(parent, pattern, keep):
+    """Delete child folders of docs/<parent> whose names match pattern and aren't in keep."""
+    folder = DOCS / parent
+    if not folder.is_dir():
         return
-    for child in blog.iterdir():
-        m = re.fullmatch(r"post-(\d+)", child.name)
-        if m and child.is_dir() and not child.is_symlink() and int(m.group(1)) > count:
+    for child in folder.iterdir():
+        if (child.is_dir() and not child.is_symlink() and re.fullmatch(pattern, child.name)
+                and child.name not in keep):
             shutil.rmtree(child)
 
 
-def build(s):
-    write("index.html", page_home(s))
-    write("products/index.html", page_products(s))
-    write("blog/index.html", page_blog_index(s))
-    for i in range(len(s["blog_posts"])):
-        write(f"blog/post-{i + 1}/index.html", page_blog_post(s, i))
-    remove_stale_posts(len(s["blog_posts"]))
-    write("js/index.html", page_js())
-    write("js/data.json", js_data(s))
-    write("long/index.html", page_long(s))
-    write("redirect/index.html", page_redirect())
-    write("404.html", page_404())
-    write("sitemap.xml", sitemap(s))
-    write("files/report.pdf", make_pdf(s))
-    for name, svg in SVGS.items():
-        write(f"images/widget-{name}.svg", svg + "\n")
+def build(s, now):
+    """Write docs/. Updates s['lastmod'] for every sitemap page whose content changed."""
+    files = render_all(s)
+    lastmod = s.setdefault("lastmod", {})
+    for rel, data in files.items():
+        path = DOCS / rel
+        if not path.exists() or path.read_bytes() != data:
+            lastmod[sitemap_path_for(rel)] = now
+    wanted = sitemap_paths(s)
+    s["lastmod"] = {p: lastmod.get(p, now) for p in wanted}
+    files["sitemap.xml"] = sitemap(s).encode("utf-8")
+
+    for rel, data in files.items():
+        path = DOCS / rel
+        if path.exists() and path.read_bytes() == data:
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+    remove_stale_dirs("blog", r"post-\d+", {f"post-{i + 1}" for i in range(len(s["blog_posts"]))})
+    remove_stale_dirs("t", SANDBOX_NAME.pattern, set(s["sandboxes"]))
