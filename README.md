@@ -58,7 +58,7 @@ When the run finishes:
 
 - **Run summary:** the run page shows every change with its before and after values, the change number and the commit, for example `price: 19.99 → 24.99`. Copy it into your test notes and match it against the Visualping alert.
 - **Waiting for the cache:** GitHub Pages caches every file for up to 10 minutes. That includes `data.json` and the PDF, not only HTML. By default the run **waits until every file it changed is live** at its normal URL, so a run often takes 1–12 minutes.
-- **Which colour counts:** **only a green run counts.** Red means the change failed, the cache didn't clear in time, or the run wasn't started by `xianlowvisualping`. Treat red, grey (skipped) or still running as **Blocked**, and don't click Check now.
+- **Which colour counts:** **only a green run counts.** Red means the change failed, the cache didn't clear in time, or the run wasn't started by `xianlowvisualping`. Treat red, grey (skipped) or still running as **Blocked**, and don't click Check now. If the run was red because files never went live, GitHub's own **pages build and deployment** run usually failed (it sometimes gets stuck in its queue). The change is still committed, so run the workflow again with `touch`, with the same sandbox if there was one, to redeploy.
 
 Pages is served from many cache servers. The run checks the one closest to GitHub's runners, which is usually, but not always, the one Visualping sees. If a check right after a green run still shows the old version, wait a few minutes and check again.
 

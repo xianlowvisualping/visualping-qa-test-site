@@ -83,7 +83,14 @@ def main():
             break
         waited = (time.time() - start) / 60
         if waited > args.timeout_minutes:
-            print(f"::error::Not live after {args.timeout_minutes:g} minutes: {', '.join(pending)}")
+            print(f"::error::Not live after {args.timeout_minutes:g} minutes: {', '.join(pending)}. "
+                  "The usual cause is GitHub's own 'pages build and deployment' run failing or getting "
+                  "stuck for this commit (see the Actions tab). The change IS committed: run the "
+                  "workflow again with `touch` (or the same sandbox and `touch`) to redeploy.")
+            if args.summary:
+                with open(args.summary, "a", encoding="utf-8") as fh:
+                    fh.write("**Not live after the time limit. The test is Blocked.** Check GitHub's "
+                             "'pages build and deployment' run, then re-run with `touch` to redeploy.\n")
             sys.exit(1)
         print(f"{waited:4.1f} min: waiting for {len(pending)} of {total} file(s)")
         time.sleep(15)
