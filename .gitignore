@@ -1,0 +1,9 @@
+# Keep local and secret files out of the public repo
+.DS_Store
+.env
+.env.*
+*.pem
+*.key
+__pycache__/
+*.pyc
+.claude/

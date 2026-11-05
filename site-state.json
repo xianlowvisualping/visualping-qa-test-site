@@ -1,0 +1,13 @@
+{
+  "change_number": 1,
+  "last_updated": "2026-11-05 17:26 UTC",
+  "headline": "Acme Test Store",
+  "announcement": "Welcome! This page exists only for Visualping QA testing.",
+  "price": "19.99",
+  "in_stock": true,
+  "theme": "blue",
+  "news": [
+    "Store opened for testing",
+    "Free shipping on all test orders"
+  ]
+}
