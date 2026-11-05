@@ -80,6 +80,6 @@ Text values are limited to 200 characters. Run `python3 change.py status` to see
 Free GitHub Pages needs a public repository, so **everything committed here is public**: the pages, the scripts, the state file and the git history, including commit author names and emails. Your commits use your GitHub no-reply email, and workflow commits use `github-actions[bot]`. Never commit tokens, `.env` files or customer data; `.gitignore` blocks the common ones.
 
 - The workflow uses only the built-in `GITHUB_TOKEN`, which is limited to writing this repo's contents. There's no personal access token anywhere.
-- Only people with write access to the repo can run the workflow.
+- Only people with write access to the repo can run the workflow (today that's only `xianlowvisualping`). The workflow also skips any run that wasn't started by `xianlowvisualping`, even if collaborators are added later. Anyone can *see* the public run logs, but not start a run. Someone who forks the repo can only change their own copy, never this site.
 - Static pages allow no scripts at all (`default-src 'none'`). The `/js/` page allows only its own `app.js`, which inserts text with `textContent` and never as HTML.
 - Every page sets `noindex`, so search engines don't list it. Visualping still fetches pages normally.
