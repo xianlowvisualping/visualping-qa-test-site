@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <title>JS page | Visualping QA Test Site</title>
+  <link rel="stylesheet" href="../style.css">
+  <script src="app.js" defer></script>
+</head>
+<body class="theme-blue">
+  <nav class="site-nav"><a href="../">Home</a> <a href="../products/">Products</a> <a href="../blog/">Blog</a> <a href="../js/">JS page</a> <a href="../long/">Long page</a> <a href="../redirect/">Redirect</a> <a href="../files/report.pdf">PDF</a></nav>
+  <main>
+    <h1>JavaScript page</h1>
+    <p class="note">Everything below is rendered by <code>app.js</code> from <code>data.json</code>. With JavaScript off, this page is nearly empty.</p>
+
+    <section class="card">
+      <h2>Rendered message</h2>
+      <p id="js-message">Loading&hellip;</p>
+      <p id="delayed" hidden></p>
+    </section>
+
+    <section class="card">
+      <h2>Carousel</h2>
+      <div id="carousel" class="carousel">
+        <div id="slides"></div>
+        <button type="button" id="prev">&larr; Prev</button>
+        <button type="button" id="next">Next &rarr;</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Search and load more</h2>
+      <label for="search">Filter items</label>
+      <input id="search" type="search" autocomplete="off" placeholder="Type to filter">
+      <ul id="item-list"></ul>
+      <button type="button" id="load-more">Load more</button>
+    </section>
+
+    <section class="card">
+      <h2>Fake login (for Actions tests)</h2>
+      <p class="note">Nothing you type is stored or sent anywhere. Never enter a real password.</p>
+      <form id="login-form" autocomplete="off">
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="off">
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="off">
+        <button type="submit">Log in</button>
+      </form>
+      <div id="members" hidden>
+        <p id="welcome"></p>
+        <p>Members-only content: the secret test word is <strong>pineapple</strong>.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="popup" class="popup" hidden role="dialog" aria-modal="true" aria-labelledby="popup-title">
+    <div class="popup-box">
+      <h2 id="popup-title">Join our newsletter!</h2>
+      <p>This pop-up appears 2 seconds after load so you can test pop-up removal.</p>
+      <button type="button" id="popup-close">Close</button>
+    </div>
+  </div>
+
+  <div id="cookie-banner" class="cookie-banner" hidden>
+    <p>We use cookies (not really). This banner shows on every load.</p>
+    <button type="button" id="cookie-accept">Accept</button>
+    <button type="button" id="cookie-reject">Reject</button>
+  </div>
+</body>
+</html>

@@ -1,0 +1,121 @@
+# Make a change to the QA test site from the GitHub UI (Actions > Change test site
+# > Run workflow) or with `gh workflow run change-site.yml -f command=price -f value=24.99`.
+# Only people with write access to this repo can run it.
+#
+# Security notes:
+# - Inputs reach the shell only through environment variables, never through
+#   ${{ }} inside `run:`, so they can't inject shell code.
+# - The built-in GITHUB_TOKEN is used, limited to `contents: write` for this job.
+#   No personal access token or other secret is needed or stored.
+# - Third-party actions are pinned to a full commit SHA.
+name: Change test site
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: Change to make (see README for what each one does)
+        type: choice
+        required: true
+        default: touch
+        options:
+          - touch
+          - random
+          - reset
+          - headline
+          - announcement
+          - keyword-add
+          - keyword-remove
+          - price
+          - stock
+          - quantity
+          - percent
+          - image
+          - theme
+          - news-add
+          - news-remove
+          - table-add
+          - table-remove
+          - table-price
+          - blog-add
+          - blog-remove
+          - blog-edit
+          - pdf
+          - js-message
+          - long-note
+      value:
+        description: First value, if the command takes one (e.g. 24.99, out, "New headline")
+        type: string
+        required: false
+        default: ""
+      value2:
+        description: Second value, for table-add, table-price and blog-edit
+        type: string
+        required: false
+        default: ""
+      wait_for_live:
+        description: Wait until the live page (after GitHub's ~10 minute cache) shows the change
+        type: boolean
+        default: true
+
+permissions: {}
+
+concurrency:
+  group: change-test-site
+  cancel-in-progress: false
+
+jobs:
+  change:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Apply change, commit and push
+        id: apply
+        env:
+          CMD: ${{ inputs.command }}
+          VALUE: ${{ inputs.value }}
+          VALUE2: ${{ inputs.value2 }}
+        run: |
+          args=()
+          if [ -n "$VALUE" ]; then args+=("$VALUE"); fi
+          if [ -n "$VALUE2" ]; then args+=("$VALUE2"); fi
+          # "--" stops values like "-5" being read as options.
+          python3 change.py -- "$CMD" "${args[@]}"
+
+          n=$(python3 -c 'import json; print(int(json.load(open("site-state.json"))["change_number"]))')
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A docs site-state.json
+          git commit --quiet -m "QA change #$n via workflow: $CMD"
+
+          pushed=""
+          for attempt in 1 2 3; do
+            if git pull --rebase --quiet && git push --quiet; then pushed=1; break; fi
+            sleep 5
+          done
+          if [ -z "$pushed" ]; then echo "::error::Could not push after 3 attempts."; exit 1; fi
+
+          echo "change_number=$n" >> "$GITHUB_OUTPUT"
+          echo "Pushed change #$n ($CMD)." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Wait until the live page shows the change
+        if: inputs.wait_for_live
+        env:
+          WANT: ${{ steps.apply.outputs.change_number }}
+        run: |
+          url="https://xianlowvisualping.github.io/visualping-qa-test-site/"
+          for attempt in $(seq 1 80); do
+            live=$(curl -fsS "$url" | grep -o 'id="change-number">[0-9]*' | grep -o '[0-9]*$' || true)
+            echo "Attempt $attempt: live page shows change #${live:-?}, waiting for #$WANT"
+            if [ "$live" = "$WANT" ]; then
+              echo "Live page shows change #$WANT. Safe to click Check now in Visualping." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "::error::The live page still doesn't show change #$WANT after 20 minutes."
+          exit 1

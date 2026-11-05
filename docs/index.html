@@ -6,21 +6,26 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex, nofollow">
-  <title>Visualping QA Test Page</title>
+  <title>Home | Visualping QA Test Site</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="theme-blue">
+  <nav class="site-nav"><a href="">Home</a> <a href="products/">Products</a> <a href="blog/">Blog</a> <a href="js/">JS page</a> <a href="long/">Long page</a> <a href="redirect/">Redirect</a> <a href="files/report.pdf">PDF</a></nav>
   <header>
     <p class="tag">QA test page &middot; not a real store</p>
     <h1 id="headline">Acme Test Store</h1>
     <p id="announcement">Welcome! This page exists only for Visualping QA testing.</p>
+    <p class="keyword-slot">Keyword: <span id="keyword"></span></p>
   </header>
 
   <main>
     <section class="card" id="product">
       <h2>Test Widget</h2>
+      <img id="product-image" src="images/widget-a.svg" alt="Product image" width="240" height="160">
       <p class="price">$<span id="price">19.99</span></p>
       <p id="stock" class="stock in">In stock</p>
+      <p>Quantity available: <span id="quantity">42</span></p>
+      <p>Discount: <span id="percent">10</span>%</p>
     </section>
 
     <section class="card" id="news">
@@ -33,8 +38,8 @@
   </main>
 
   <footer>
-    <p>Change #<span id="change-number">1</span>
-       &middot; Last updated <time id="last-updated">2026-11-05 17:26 UTC</time>
+    <p>Change #<span id="change-number">2</span>
+       &middot; Last updated <time id="last-updated">2026-11-05 17:52 UTC</time>
        &middot; Theme: <span id="theme">blue</span></p>
   </footer>
 </body>
