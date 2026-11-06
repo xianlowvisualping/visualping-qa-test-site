@@ -42,39 +42,7 @@
   "pdf_text": "This PDF changes only when you run the pdf command.",
   "js_message": "This message was rendered by JavaScript.",
   "long_note": "This note at the bottom of the long page has not changed yet.",
-  "sandboxes": {
-    "e2e-settle-1": {
-      "change_number": 2,
-      "last_updated": "2026-11-06 19:52 UTC",
-      "headline": "Acme Test Store",
-      "announcement": "Welcome! This page exists only for Visualping QA testing.",
-      "keyword": "",
-      "price": "19.99",
-      "in_stock": false,
-      "quantity": 42,
-      "percent": "10",
-      "image": "a",
-      "theme": "blue",
-      "news": [
-        "Store opened for testing",
-        "Free shipping on all test orders"
-      ],
-      "table": [
-        {
-          "name": "Blue widget",
-          "price": "19.99"
-        },
-        {
-          "name": "Green gadget",
-          "price": "34.50"
-        },
-        {
-          "name": "Red gizmo",
-          "price": "7.25"
-        }
-      ]
-    }
-  },
+  "sandboxes": {},
   "lastmod": {
     "": "2026-11-05T18:34:43Z",
     "products/": "2026-11-05T18:34:43Z",
