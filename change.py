@@ -475,14 +475,18 @@ def run_changes(commands, sandbox, summary_file):
     before = copy.deepcopy(state)
     page = state["sandboxes"][sandbox] if sandbox else state
 
-    warnings = []
+    # A command that changes nothing fails the whole run (nothing is written), so a
+    # test never waits for an alert that can't come. `touch` is the deliberate no-op.
+    start = content(state)
     for cmd, values in commands:
         snap = content(state)
         apply(cmd, values, page, state, sandbox)
         if cmd not in READ_ONLY | {"touch"} and content(state) == snap:
-            shown = " ".join([cmd] + values).replace("`", "'")
-            warnings.append(f"⚠️ `{shown}` changed nothing: that was already the current "
-                            "value. Don't expect an alert for that element.")
+            shown = " ".join([cmd] + values)
+            fail(f"'{shown}' would change nothing: that is already the current value. "
+                 "Nothing was changed. Use a different value, or `reset` first.")
+    if not all(cmd in READ_ONLY | {"touch"} for cmd, _ in commands) and content(state) == start:
+        fail("these commands cancel each other out, so the page would end up unchanged. Nothing was changed.")
 
     if all(cmd in READ_ONLY for cmd, _ in commands):
         emit(summary_file, "Read-only run: nothing changed", sandbox_lines(state))
@@ -493,12 +497,7 @@ def run_changes(commands, sandbox, summary_file):
     sitegen.build(state, now_iso())
     save_state(state)
 
-    lines = summarize(before, state, sandbox)
-    if not lines:
-        only_touch = all(cmd in ("touch",) + tuple(READ_ONLY) for cmd, _ in commands)
-        lines = ["no content changed (touch)"] if only_touch else \
-            ["⚠️ net result: no content changed (later commands undid earlier ones, or values were already set)"]
-    lines += warnings
+    lines = summarize(before, state, sandbox) or ["no content changed (touch)"]
     where = f"/t/{sandbox}/" if sandbox else "home page"
     head = f"Change #{page['change_number']} on {where}"
     if all(cmd in NO_BUMP for cmd, _ in commands):

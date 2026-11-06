@@ -55,6 +55,19 @@ def never_existed(rel):
     return out.strip() == ""
 
 
+def superseded(rel):
+    """True if a later commit on origin/main changed docs/<rel> again (another run's change).
+
+    Then this commit's version may never appear live, because the newer one replaces it.
+    """
+    subprocess.run(["git", "fetch", "--quiet", "origin", "main"], cwd=ROOT, check=False)
+    out = subprocess.run(
+        ["git", "log", "--format=%H", "-1", "HEAD..origin/main", "--", "docs/" + rel],
+        cwd=ROOT, check=False, capture_output=True, text=True,
+    ).stdout
+    return out.strip() != ""
+
+
 def utc(ts):
     return datetime.datetime.fromtimestamp(ts, datetime.timezone.utc).strftime("%H:%M:%S UTC")
 
@@ -93,10 +106,12 @@ def main():
     args = parser.parse_args()
 
     pending = {}
+    rels = {}
     all_new = True
     for rel, status in changed_files():
         expect = None if status == "D" else (ROOT / "docs" / rel).read_bytes()
         pending[url_for(rel)] = expect
+        rels[url_for(rel)] = rel
         all_new = all_new and status == "A" and never_existed(rel)
     if not pending:
         print("No files under docs/ changed in this commit.")
@@ -105,12 +120,18 @@ def main():
     total = len(pending)
     start = time.time()
     first_live = None
+    replaced = []
     while pending:
         for url, expect in list(pending.items()):
             status, body = fetch(url)
             if (expect is None and status == 404) or (expect is not None and status == 200 and body == expect):
                 print(f"live: {url}")
                 first_live = first_live or time.time()
+                del pending[url]
+            elif superseded(rels[url]):
+                print(f"changed again by a later run, so its check covers it: {url}")
+                first_live = first_live or time.time()
+                replaced.append(url)
                 del pending[url]
         if not pending:
             break
@@ -142,6 +163,12 @@ def main():
         msg = f"Safe since {utc(safe)}: every cache server now has the new version. Click Check now in Visualping."
     print(msg)
     write_summary(args.summary, f"**{msg}**")
+    if replaced:
+        note = (f"⚠️ {len(replaced)} file(s) were changed again by a later run before this version went "
+                f"live, so the live page shows both runs' changes: {', '.join(replaced)}. Use a sandbox per "
+                "test to avoid this.")
+        print(note)
+        write_summary(args.summary, note)
 
 
 if __name__ == "__main__":

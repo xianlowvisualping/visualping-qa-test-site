@@ -5,12 +5,21 @@
 # Who can run it: only people with write access to this repo, and the first
 # step then fails (red) unless the run was started by the repo owner.
 #
+# Two jobs, so runs don't queue behind each other's waits:
+# - "change" applies the commands and pushes (about 30 seconds). It has no
+#   concurrency queue (GitHub's queue silently cancels all but one waiting
+#   run). Instead, if another run pushed first, it starts again from the
+#   latest site and re-applies the commands, up to 5 times.
+# - "wait" checks that the change is live everywhere (about 11 minutes). Any
+#   number of these can run at the same time.
+#
 # Security notes:
 # - Inputs reach the shell only through environment variables, never through
 #   ${{ }} inside `run:`, so they can't inject shell code. change.py parses the
 #   commands with shlex and runs no shell itself.
-# - The built-in GITHUB_TOKEN is used, limited to `contents: write` for this job.
-#   No personal access token or other secret is needed or stored.
+# - The built-in GITHUB_TOKEN is used, limited to `contents: write` for the
+#   change job and `contents: read` for the wait job. No personal access token
+#   or other secret is needed or stored.
 # - Third-party actions are pinned to a full commit SHA.
 # - Run inputs and logs are PUBLIC. Use only test values: never a customer
 #   name, URL or email.
@@ -36,16 +45,15 @@ on:
 
 permissions: {}
 
-concurrency:
-  group: change-test-site
-  cancel-in-progress: false
-
 jobs:
   change:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 10
     permissions:
       contents: write
+    outputs:
+      changed: ${{ steps.apply.outputs.changed }}
+      commit: ${{ steps.apply.outputs.commit }}
     steps:
       - name: Only the repo owner may change the site
         env:
@@ -57,8 +65,6 @@ jobs:
           fi
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0  # full history, so verify_live.py can tell brand-new URLs from old ones
 
       - name: Apply changes, commit and push
         id: apply
@@ -66,35 +72,59 @@ jobs:
           COMMANDS: ${{ inputs.commands }}
           SANDBOX: ${{ inputs.sandbox }}
         run: |
-          opts=(--summary "$GITHUB_STEP_SUMMARY")
+          opts=(--summary "$RUNNER_TEMP/summary.md")
           if [ -n "$SANDBOX" ]; then opts+=(--in "$SANDBOX"); fi
-          # "--" stops the commands text being read as options.
-          python3 change.py "${opts[@]}" -- run "$COMMANDS"
-
-          if [ -z "$(git status --porcelain -- docs site-state.json)" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            exit 0  # read-only run such as sandbox-list: nothing to commit or wait for
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A docs site-state.json
-          git commit --quiet -m "QA change via workflow run $GITHUB_RUN_NUMBER"
 
-          pushed=""
-          for attempt in 1 2 3; do
-            if git pull --rebase --quiet && git push --quiet; then pushed=1; break; fi
-            sleep 5
+          for attempt in 1 2 3 4 5; do
+            # Always start from the latest site, so runs started together don't conflict.
+            git fetch --quiet origin main
+            git reset --quiet --hard origin/main
+            rm -f "$RUNNER_TEMP/summary.md"
+            # "--" stops the commands text being read as options. An invalid or
+            # no-op command fails here (red) and nothing is pushed.
+            python3 change.py "${opts[@]}" -- run "$COMMANDS"
+
+            if [ -z "$(git status --porcelain -- docs site-state.json)" ]; then
+              cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              exit 0  # read-only run such as sandbox-list
+            fi
+            git add -A docs site-state.json
+            git commit --quiet -m "QA change via workflow run $GITHUB_RUN_NUMBER"
+            if git push --quiet origin HEAD:main; then
+              cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+              echo "Commit: \`$(git rev-parse --short HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+              echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "Another run pushed first. Re-applying on top of it (attempt $attempt of 5)."
+            sleep $((attempt * 3))
           done
-          if [ -z "$pushed" ]; then echo "::error::Could not push after 3 attempts."; exit 1; fi
-          echo "Commit: \`$(git rev-parse --short HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "::error::Could not push after 5 attempts."
+          exit 1
+
+  wait:
+    needs: change
+    if: needs.change.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.change.outputs.commit }}
+          fetch-depth: 0  # full history, so verify_live.py can tell brand-new URLs from old ones
 
       - name: Wait until every changed file is live everywhere
-        if: inputs.wait_for_live && steps.apply.outputs.changed == 'true'
+        if: inputs.wait_for_live
         run: python3 verify_live.py --timeout-minutes 20 --summary "$GITHUB_STEP_SUMMARY"
 
       - name: Note when it is safe (not verified)
-        if: ${{ !inputs.wait_for_live && steps.apply.outputs.changed == 'true' }}
+        if: ${{ !inputs.wait_for_live }}
         run: |
           safe=$(date -u -d '+12 minutes' '+%H:%M UTC')
           echo "**Not verified (wait_for_live was off). Safe after about $safe.**" >> "$GITHUB_STEP_SUMMARY"

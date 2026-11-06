@@ -54,18 +54,19 @@ You can also start a run from a terminal:
 gh workflow run change-site.yml -R xianlowvisualping/visualping-qa-test-site -f commands="price 24.99; stock out"
 ```
 
-If any command is invalid, nothing changes and the run fails.
+If any command is invalid, nothing changes and the run fails (red). The same happens if a command **would change nothing**, for example `price 24.99` when the price is already 24.99, or a batch whose commands cancel each other out. Use a different value, or `reset` first. Only `touch` is allowed to change nothing.
 
 When the run finishes:
 
 - **Run summary:** the run page shows every change with its before and after values, the change number and the commit, for example `price: 19.99 → 24.99`. Copy it into your test notes and match it against the Visualping alert.
-- **⚠️ Changed nothing:** if a command sets a value that was already there, such as `price 24.99` when the price is already 24.99, the summary says ⚠️ `price 24.99` changed nothing. The change number still goes up, but don't expect an alert for that element. Use a different value or run `reset` first.
 - **Waiting for the cache:** GitHub Pages caches every file for up to 10 minutes on many cache servers around the world. That includes `data.json` and the PDF, not only HTML. The run can only check the cache server nearest GitHub. A cache server near Visualping may still hold the old page from your baseline check. So by default the run:
   1. waits until every changed file is live at its normal URL, then
   2. **keeps waiting until 10.5 minutes after the deploy**, when no cache server anywhere can still be stale. The run summary says `Safe since HH:MM:SS UTC`.
 
   A typical run therefore takes 11–13 minutes. The exception is `sandbox-create` with a name that has never been used before: nothing can have cached that URL, so the run goes green as soon as the page is live, in about 1–2 minutes. To keep sandbox creation fast, use a new name each time instead of reusing an old one.
-- **Which colour counts:** **only a green run counts.** Red means the change failed, the cache didn't clear in time, or the run wasn't started by `xianlowvisualping`. Treat red, grey (skipped) or still running as **Blocked**, and don't click Check now. If the run was red because files never went live, GitHub's own **pages build and deployment** run usually failed (it sometimes gets stuck in its queue). The change is still committed, so run the workflow again with `touch`, with the same sandbox if there was one, to redeploy.
+
+  **Runs don't wait for each other.** Each run has two jobs: **change** applies and pushes in about 30 seconds, then **wait** does the long wait. Many waits can run at once, so you can start several changes back to back and they all finish about 11–13 minutes later. If two runs push at the same moment, the later one re-applies its commands on top of the other's change. If two runs change the **same page** within a few minutes, the earlier run's version may never be live on its own. Its summary then says ⚠️ the file was changed again by a later run, and the live page shows both changes. Use a separate sandbox per test to avoid this.
+- **Which colour counts:** **only a green run counts.** Red means a command was invalid or would change nothing, the cache didn't clear in time, or the run wasn't started by `xianlowvisualping`. Treat red, grey (skipped) or still running as **Blocked**, and don't click Check now. If the run was red because files never went live, GitHub's own **pages build and deployment** run usually failed (it sometimes gets stuck in its queue). The change is still committed, so run the workflow again with `touch`, with the same sandbox if there was one, to redeploy.
 
 If you turn **wait_for_live** off, the run finishes right after pushing and the summary gives a `Safe after about HH:MM UTC` time 12 minutes later. Don't click Check now before that time.
 
