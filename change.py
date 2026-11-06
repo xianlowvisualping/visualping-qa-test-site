@@ -201,12 +201,15 @@ CHANGE_COMMANDS = {
     "long-note": "TEXT  change the line at the bottom of /long/",
     "sandbox-create": "NAME  create /t/NAME/, a fresh home page copy owned by one test",
     "sandbox-delete": "NAME  delete /t/NAME/ (it then returns 404)",
+    "sandbox-list": "list sandboxes (changes nothing; also works as a workflow run)",
 }
 # Commands that only make sense on the shared site, not inside a sandbox.
 SITE_ONLY = {"blog-add", "blog-remove", "blog-edit", "pdf", "js-message", "long-note",
              "sandbox-create", "sandbox-delete"}
+# Commands that change nothing at all.
+READ_ONLY = {"sandbox-list"}
 # Commands that don't change the page they target, so they don't bump its change number.
-NO_BUMP = {"sandbox-create", "sandbox-delete"}
+NO_BUMP = {"sandbox-create", "sandbox-delete", "sandbox-list"}
 
 
 def random_change(page):
@@ -337,6 +340,8 @@ def apply(cmd, a, page, state, sandbox):
             fail(f"there are already {MAX_SANDBOXES} sandboxes. Delete some first.")
         state["sandboxes"][name] = copy.deepcopy(PAGE_DEFAULTS)
         bump(state["sandboxes"][name])
+    elif cmd == "sandbox-list":
+        need(0)
     elif cmd == "sandbox-delete":
         need(1)
         name = clean_sandbox_name(a[0])
@@ -437,30 +442,70 @@ def preview():
             pass
 
 
-def run_changes(commands, sandbox, summary_file):
-    state = load_state()
-    if sandbox and sandbox not in state["sandboxes"]:
-        fail(f"there is no sandbox called '{sandbox}'. Create it with: sandbox-create {sandbox}")
-    before = copy.deepcopy(state)
-    page = state["sandboxes"][sandbox] if sandbox else state
-    for cmd, values in commands:
-        apply(cmd, values, page, state, sandbox)
-    if any(cmd not in NO_BUMP for cmd, _ in commands):
-        bump(page)
-    sitegen.build(state, now_iso())
-    save_state(state)
+def sandbox_lines(state):
+    boxes = state["sandboxes"]
+    lines = [f"{len(boxes)} of {MAX_SANDBOXES} sandboxes in use"]
+    for name, sb in sorted(boxes.items()):
+        lines.append(f"/t/{name}/ (sandbox change #{sb['change_number']}, last updated {sb['last_updated'] or 'never'})")
+    return lines
 
-    lines = summarize(before, state, sandbox) or ["no content changed (touch)"]
-    where = f"/t/{sandbox}/" if sandbox else "home page"
-    head = f"Change #{page['change_number']} on {where}"
-    if all(cmd in NO_BUMP for cmd, _ in commands):
-        head = "Sandbox change (no page change number)"
+
+def emit(summary_file, head, lines):
     print(head)
     for line in lines:
         print(f"  {line}")
     if summary_file:
         with open(summary_file, "a", encoding="utf-8") as fh:
             fh.write(f"### {head}\n\n" + "".join(f"- {line}\n" for line in lines) + "\n")
+
+
+def content(state):
+    """State without bookkeeping, for 'did this command change anything?' checks."""
+    snap = {k: v for k, v in state.items() if k not in ("change_number", "last_updated", "lastmod", "sandboxes")}
+    snap["sandboxes"] = {n: {k: v for k, v in sb.items() if k not in ("change_number", "last_updated")}
+                         for n, sb in state["sandboxes"].items()}
+    return copy.deepcopy(snap)
+
+
+def run_changes(commands, sandbox, summary_file):
+    """Apply a batch. Returns a one-line summary, or None if nothing was written."""
+    state = load_state()
+    if sandbox and sandbox not in state["sandboxes"]:
+        fail(f"there is no sandbox called '{sandbox}'. Create it with: sandbox-create {sandbox}")
+    before = copy.deepcopy(state)
+    page = state["sandboxes"][sandbox] if sandbox else state
+
+    warnings = []
+    for cmd, values in commands:
+        snap = content(state)
+        apply(cmd, values, page, state, sandbox)
+        if cmd not in READ_ONLY | {"touch"} and content(state) == snap:
+            shown = " ".join([cmd] + values).replace("`", "'")
+            warnings.append(f"⚠️ `{shown}` changed nothing: that was already the current "
+                            "value. Don't expect an alert for that element.")
+
+    if all(cmd in READ_ONLY for cmd, _ in commands):
+        emit(summary_file, "Read-only run: nothing changed", sandbox_lines(state))
+        return None
+
+    if any(cmd not in NO_BUMP for cmd, _ in commands):
+        bump(page)
+    sitegen.build(state, now_iso())
+    save_state(state)
+
+    lines = summarize(before, state, sandbox)
+    if not lines:
+        only_touch = all(cmd in ("touch",) + tuple(READ_ONLY) for cmd, _ in commands)
+        lines = ["no content changed (touch)"] if only_touch else \
+            ["⚠️ net result: no content changed (later commands undid earlier ones, or values were already set)"]
+    lines += warnings
+    where = f"/t/{sandbox}/" if sandbox else "home page"
+    head = f"Change #{page['change_number']} on {where}"
+    if all(cmd in NO_BUMP for cmd, _ in commands):
+        head = "Sandbox change (no page change number)"
+    if any(cmd in ("sandbox-create", "sandbox-delete", "sandbox-list") for cmd, _ in commands):
+        lines += sandbox_lines(state)
+    emit(summary_file, head, lines)
     return f"{head}: " + "; ".join(lines)
 
 
@@ -482,6 +527,7 @@ def main():
             state = load_state()
             if args.command == "status":
                 print(json.dumps(state, indent=2))
+                print("\n".join(sandbox_lines(state)))
                 return
             sitegen.build(state, now_iso())
             save_state(state)
@@ -502,6 +548,8 @@ def main():
     except ChangeError as err:
         sys.exit(f"Error: {err}")
 
+    if message is None:
+        return  # read-only: nothing to publish
     if args.publish:
         git("add", "-A", "docs", "site-state.json")
         git("commit", "--quiet", "-m", f"QA {message}"[:500])

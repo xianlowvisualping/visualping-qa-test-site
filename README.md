@@ -35,6 +35,8 @@ To keep tests independent, give each test its own sandbox:
 2. **Changes:** run with **sandbox** set to `price-test-1` (or `--in price-test-1` locally). Only that page changes, and it has its own `Sandbox change #N` counter.
 3. **Cleanup:** run `sandbox-delete price-test-1`. The page then returns 404.
 
+To find leftover sandboxes, for example from failed runs, run `sandbox-list` as a workflow run. It changes nothing, commits nothing and finishes in seconds. Locally, `python3 change.py sandbox-list` does the same. Every `sandbox-create` and `sandbox-delete` summary also shows how many of the 50 are in use.
+
 Sandboxes support every home page command plus the `table-*` commands, which act on the sandbox's own table. The blog, PDF, `js-message` and `long-note` are shared by everyone, so they can't be sandboxed. For tests on those, run `reset` in Setup and write down the change number it reports. Names use lowercase letters, numbers and hyphens, and up to 50 sandboxes can exist at once.
 
 ## Making a change
@@ -57,10 +59,15 @@ If any command is invalid, nothing changes and the run fails.
 When the run finishes:
 
 - **Run summary:** the run page shows every change with its before and after values, the change number and the commit, for example `price: 19.99 → 24.99`. Copy it into your test notes and match it against the Visualping alert.
-- **Waiting for the cache:** GitHub Pages caches every file for up to 10 minutes. That includes `data.json` and the PDF, not only HTML. By default the run **waits until every file it changed is live** at its normal URL, so a run often takes 1–12 minutes.
+- **⚠️ Changed nothing:** if a command sets a value that was already there, such as `price 24.99` when the price is already 24.99, the summary says ⚠️ `price 24.99` changed nothing. The change number still goes up, but don't expect an alert for that element. Use a different value or run `reset` first.
+- **Waiting for the cache:** GitHub Pages caches every file for up to 10 minutes on many cache servers around the world. That includes `data.json` and the PDF, not only HTML. The run can only check the cache server nearest GitHub. A cache server near Visualping may still hold the old page from your baseline check. So by default the run:
+  1. waits until every changed file is live at its normal URL, then
+  2. **keeps waiting until 10.5 minutes after the deploy**, when no cache server anywhere can still be stale. The run summary says `Safe since HH:MM:SS UTC`.
+
+  A typical run therefore takes 11–13 minutes. The exception is `sandbox-create` with a name that has never been used before: nothing can have cached that URL, so the run goes green as soon as the page is live, in about 1–2 minutes. To keep sandbox creation fast, use a new name each time instead of reusing an old one.
 - **Which colour counts:** **only a green run counts.** Red means the change failed, the cache didn't clear in time, or the run wasn't started by `xianlowvisualping`. Treat red, grey (skipped) or still running as **Blocked**, and don't click Check now. If the run was red because files never went live, GitHub's own **pages build and deployment** run usually failed (it sometimes gets stuck in its queue). The change is still committed, so run the workflow again with `touch`, with the same sandbox if there was one, to redeploy.
 
-Pages is served from many cache servers. The run checks the one closest to GitHub's runners, which is usually, but not always, the one Visualping sees. If a check right after a green run still shows the old version, wait a few minutes and check again.
+If you turn **wait_for_live** off, the run finishes right after pushing and the summary gives a `Safe after about HH:MM UTC` time 12 minutes later. Don't click Check now before that time.
 
 **Run inputs and logs are public.** Use only test values, and never a customer name, URL or email.
 
@@ -70,7 +77,7 @@ Pages is served from many cache servers. The run checks the one closest to GitHu
 python3 change.py --publish run "price 24.99; stock out"
 ```
 
-`--publish` runs `git pull --rebase` before and after the change, so it won't clash with workflow runs. This option doesn't wait for the cache. Either wait about 10 minutes, or run `python3 verify_live.py` after pushing.
+`--publish` runs `git pull --rebase` before and after the change, so it won't clash with workflow runs. This option doesn't wait for the cache. After pushing, run `python3 verify_live.py`, which does the same full wait as the workflow, or wait about 12 minutes.
 
 ## Commands
 
@@ -102,6 +109,7 @@ python3 change.py --publish run "price 24.99; stock out"
 | `long-note` | TEXT | `#long-note` at the bottom of `/long/` |
 | `sandbox-create` | NAME | Creates `/t/NAME/`. Doesn't change any other page |
 | `sandbox-delete` | NAME | Deletes `/t/NAME/`, which then returns 404 |
+| `sandbox-list` | | Lists sandboxes in use. Changes nothing |
 
 Text values are limited to 200 characters. To make several changes at once, use `run "CMD ARGS; CMD ARGS"`. Run `python3 change.py status` to see the current content, and `python3 change.py preview` to view the site at http://127.0.0.1:8000 (only this computer can reach it).
 
