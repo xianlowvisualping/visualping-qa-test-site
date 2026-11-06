@@ -44,13 +44,13 @@
   "long_note": "This note at the bottom of the long page has not changed yet.",
   "sandboxes": {
     "e2e-settle-1": {
-      "change_number": 1,
-      "last_updated": "2026-11-06 19:51 UTC",
+      "change_number": 2,
+      "last_updated": "2026-11-06 19:52 UTC",
       "headline": "Acme Test Store",
       "announcement": "Welcome! This page exists only for Visualping QA testing.",
       "keyword": "",
       "price": "19.99",
-      "in_stock": true,
+      "in_stock": false,
       "quantity": 42,
       "percent": "10",
       "image": "a",
