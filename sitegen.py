@@ -8,8 +8,10 @@ JSON), pages ship a Content-Security-Policy, and nothing here reads secrets.
 
 import html
 import json
+import random
 import re
 import shutil
+import zlib
 from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
 
@@ -285,33 +287,137 @@ def pdf_escape(text):
     return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
+PDF_PAGES = 1000
+
+PDF_WORDS = (
+    "widget gadget gizmo sprocket module sensor bracket adapter cable panel "
+    "valve filter gasket bearing spindle rotor housing switch relay fuse "
+    "quarterly regional inventory shipment forecast audit review baseline "
+    "variance margin revenue volume backlog supplier warehouse invoice order "
+    "blue green red silver amber compact deluxe standard premium heavy light "
+    "north south east west central harbor valley summit river meadow"
+).split()
+PDF_REGIONS = ["North", "South", "East", "West", "Central"]
+PDF_STATUSES = ["Shipped", "Pending", "Backorder", "Delivered", "Cancelled"]
+
+
+def _pdf_sentence(rng):
+    words = [rng.choice(PDF_WORDS) for _ in range(rng.randint(8, 14))]
+    return (" ".join(words) + ".").capitalize()
+
+
+def _pdf_wrap(text, width=95):
+    lines, line = [], ""
+    for word in text.split():
+        if line and len(line) + 1 + len(word) > width:
+            lines.append(line)
+            line = word
+        else:
+            line = f"{line} {word}" if line else word
+    if line:
+        lines.append(line)
+    return lines
+
+
+def _pdf_page(rng, page_no, s):
+    """Content stream for one Letter page: heading, paragraph, ruled table."""
+    ops = []
+
+    def text(x, y, size, value, font="F1"):
+        ops.append(f"BT /{font} {size} Tf {x} {y} Td ({pdf_escape(value)}) Tj ET")
+
+    y = 740
+    if page_no == 1:
+        text(72, y, 18, "Visualping QA Test Report", "F2")
+        y -= 26
+        text(72, y, 12, f"PDF version {int(s['pdf_version'])}")
+        y -= 20
+        text(72, y, 12, s["pdf_text"])
+        y -= 30
+    section = f"Section {page_no}: {rng.choice(PDF_WORDS).title()} " \
+              f"{rng.choice(PDF_WORDS).title()} report"
+    text(72, y, 14, section, "F2")
+    y -= 22
+    para = " ".join(_pdf_sentence(rng) for _ in range(rng.randint(3, 6)))
+    for line in _pdf_wrap(para):
+        text(72, y, 10, line)
+        y -= 14
+    y -= 12
+
+    cols = [("ID", 72), ("Item", 132), ("Region", 282), ("Status", 352),
+            ("Qty", 432), ("Price", 482)]
+    right, row_h = 540, 18
+    rows = rng.randint(8, min(22, int((y - 120) // row_h) - 1))
+    top = y
+    bottom = top - row_h * (rows + 1)
+    ops.append("0.85 0.9 0.97 rg")
+    ops.append(f"{cols[0][1]} {top - row_h} {right - cols[0][1]} {row_h} re f")
+    ops.append("0 0 0 rg 0.5 w")
+    for r in range(rows + 2):
+        yy = top - r * row_h
+        ops.append(f"{cols[0][1]} {yy} m {right} {yy} l S")
+    for _, x in cols + [("", right)]:
+        ops.append(f"{x} {top} m {x} {bottom} l S")
+    for name, x in cols:
+        text(x + 4, top - 13, 10, name, "F2")
+    total = 0.0
+    for r in range(rows):
+        qty = rng.randint(1, 500)
+        price = rng.randint(100, 99999) / 100
+        total += qty * price
+        cells = [
+            f"{page_no:04d}-{r + 1:02d}",
+            f"{rng.choice(PDF_WORDS).title()} {rng.choice(PDF_WORDS)}",
+            rng.choice(PDF_REGIONS),
+            rng.choice(PDF_STATUSES),
+            str(qty),
+            f"{price:.2f}",
+        ]
+        yy = top - row_h * (r + 2) + 5
+        for (_, x), cell in zip(cols, cells):
+            text(x + 4, yy, 9, cell)
+    y = bottom - 22
+    text(72, y, 10, f"Table {page_no} total value: {total:,.2f}", "F2")
+    y -= 18
+    for line in _pdf_wrap(_pdf_sentence(rng) + " " + _pdf_sentence(rng)):
+        if y < 60:
+            break
+        text(72, y, 10, line)
+        y -= 14
+    text(270, 30, 9, f"Page {page_no} of {PDF_PAGES}")
+    return "\n".join(ops)
+
+
 def make_pdf(s):
-    """A minimal one-page PDF written by hand (no dependencies)."""
-    lines = [
-        ("18", "Visualping QA Test Report"),
-        ("12", f"PDF version {int(s['pdf_version'])}"),
-        ("12", s["pdf_text"]),
-    ]
-    parts = ["BT", "72 720 Td"]
-    for n, (size, text) in enumerate(lines):
-        if n:
-            parts.append("0 -28 Td")
-        parts.append(f"/F1 {size} Tf ({pdf_escape(text)}) Tj")
-    parts.append("ET")
-    stream = "\n".join(parts)
+    """A PDF_PAGES-page report with text and tables, written by hand (no dependencies).
+
+    The filler content is seeded from pdf_version and pdf_text, so the file is
+    byte-identical across rebuilds and changes only with the pdf command.
+    """
+    rng = random.Random(f"{int(s['pdf_version'])}|{s['pdf_text']}")
+    first_page = 5
+    kids = " ".join(f"{first_page + 2 * i} 0 R" for i in range(PDF_PAGES))
     objects = [
         "<< /Type /Catalog /Pages 2 0 R >>",
-        "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
-        "/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        f"<< /Type /Pages /Kids [{kids}] /Count {PDF_PAGES} >>",
         "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-        f"<< /Length {len(stream.encode('latin-1'))} >>\nstream\n{stream}\nendstream",
+        "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
     ]
+    for i in range(PDF_PAGES):
+        content_id = first_page + 2 * i + 1
+        objects.append(
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            "/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> "
+            f"/Contents {content_id} 0 R >>")
+        data = zlib.compress(_pdf_page(rng, i + 1, s).encode("latin-1"), 9)
+        objects.append((f"<< /Length {len(data)} /Filter /FlateDecode >>\nstream\n"
+                        .encode("latin-1") + data + b"\nendstream"))
     out = bytearray(b"%PDF-1.4\n")
     offsets = []
     for n, obj in enumerate(objects, start=1):
         offsets.append(len(out))
-        out += f"{n} 0 obj\n{obj}\nendobj\n".encode("latin-1")
+        body = obj if isinstance(obj, bytes) else obj.encode("latin-1")
+        out += f"{n} 0 obj\n".encode("latin-1") + body + b"\nendobj\n"
     xref = len(out)
     out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode("latin-1")
     out += "".join(f"{o:010d} 00000 n \n" for o in offsets).encode("latin-1")
