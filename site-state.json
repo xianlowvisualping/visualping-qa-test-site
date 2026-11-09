@@ -1,6 +1,6 @@
 {
-  "change_number": 10,
-  "last_updated": "2026-11-09 23:06 UTC",
+  "change_number": 11,
+  "last_updated": "2026-11-09 23:42 UTC",
   "headline": "Acme Test Store",
   "announcement": "Welcome! This page exists only for Visualping QA testing.",
   "keyword": "",
@@ -38,8 +38,8 @@
       "body": "This is the second test blog post."
     }
   ],
-  "pdf_version": 1,
-  "pdf_text": "This PDF changes only when you run the pdf command.",
+  "pdf_version": 2,
+  "pdf_text": "Revenue rose to 1450 units in Q3",
   "js_message": "This message was rendered by JavaScript.",
   "long_note": "This note at the bottom of the long page has not changed yet.",
   "sandboxes": {
@@ -76,12 +76,12 @@
     }
   },
   "lastmod": {
-    "": "2026-11-09T23:06:39Z",
+    "": "2026-11-09T23:42:23Z",
     "products/": "2026-11-05T18:34:43Z",
     "blog/": "2026-11-05T18:34:43Z",
     "js/": "2026-11-05T18:34:43Z",
     "long/": "2026-11-05T18:34:43Z",
-    "files/report.pdf": "2026-11-09T23:06:39Z",
+    "files/report.pdf": "2026-11-09T23:42:23Z",
     "blog/post-1/": "2026-11-05T18:34:43Z",
     "blog/post-2/": "2026-11-05T18:34:43Z"
   }
