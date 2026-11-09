@@ -1,10 +1,10 @@
 {
-  "change_number": 7,
-  "last_updated": "2026-11-09 18:03 UTC",
+  "change_number": 8,
+  "last_updated": "2026-11-09 19:12 UTC",
   "headline": "Acme Test Store",
   "announcement": "Welcome! This page exists only for Visualping QA testing.",
   "keyword": "",
-  "price": "40.00",
+  "price": "19.99",
   "in_stock": true,
   "quantity": 42,
   "percent": "10",
@@ -76,7 +76,7 @@
     }
   },
   "lastmod": {
-    "": "2026-11-09T18:03:17Z",
+    "": "2026-11-09T19:12:35Z",
     "products/": "2026-11-05T18:34:43Z",
     "blog/": "2026-11-05T18:34:43Z",
     "js/": "2026-11-05T18:34:43Z",
