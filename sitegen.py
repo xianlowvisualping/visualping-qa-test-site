@@ -407,7 +407,8 @@ def make_pdf(s):
 
     Seeded, so the file is byte-identical across rebuilds and changes only with
     the pdf command. That command changes page 1's header and rewrites about
-    half the other pages (random ones); the rest stay as they were.
+    half the other pages (random ones); the rest stay as they were. The
+    pdf-page N command rewrites only page N.
     """
     version = int(s["pdf_version"])
     rng = random.Random(PDF_BASE_SEED)
@@ -427,8 +428,10 @@ def make_pdf(s):
             f"/Contents {content_id} 0 R >>")
         page = _pdf_page(rng, i + 1, s)  # always advances the base stream
         rewrites = _pdf_rewrites(i + 1, version)
-        if rewrites:
-            page = _pdf_page(random.Random(f"page|{i + 1}|{rewrites}"), i + 1, s)
+        edits = int(s.get("pdf_page_edits", {}).get(str(i + 1), 0))  # pdf-page N
+        if rewrites or edits:
+            seed = f"page|{i + 1}|{rewrites}" + (f"|edit{edits}" if edits else "")
+            page = _pdf_page(random.Random(seed), i + 1, s)
         data = zlib.compress(page.encode("latin-1"), 9)
         objects.append((f"<< /Length {len(data)} /Filter /FlateDecode >>\nstream\n"
                         .encode("latin-1") + data + b"\nendstream"))

@@ -16,7 +16,7 @@ Live site: https://xianlowvisualping.github.io/visualping-qa-test-site/
 | `/t/NAME/` | A **sandbox**: a private copy of the home page plus its own table, owned by one test (see below) |
 | `/long/` | 60 sections. Only the last line changes, for full-page screenshot and scroll tests |
 | `/redirect/` | Meta-refresh redirect to `/products/` |
-| `/files/report.pdf` | A 600-page PDF of text and tables (about 0.9 MB). The `pdf` command changes page 1 and rewrites about half the other pages, picked at random |
+| `/files/report.pdf` | A 600-page PDF of text and tables (about 0.9 MB). The `pdf` command changes page 1 and rewrites about half the other pages, picked at random; `pdf-page N` rewrites only page N |
 | any missing path | Custom 404 page, served with a real 404 status |
 
 Each page changes only when its own content changes. **The exception is the home page footer** ("Change #N · Last updated"), which updates on every change. To test that a monitor ignores unrelated changes, scope it to one element (for example `#price`), then run `touch`.
@@ -106,6 +106,7 @@ python3 change.py --publish run "price 24.99; stock out"
 | `blog-remove` | | Removes the last post, which then returns 404 |
 | `blog-edit` | N TEXT | Changes a post's body |
 | `pdf` | TEXT (plain ASCII) | Rewrites `/files/report.pdf` |
+| `pdf-page` | N (1-600) | Rewrites only that page of `/files/report.pdf` |
 | `js-message` | TEXT | `#js-message` on `/js/` (rendered by JavaScript) |
 | `long-note` | TEXT | `#long-note` at the bottom of `/long/` |
 | `sandbox-create` | NAME | Creates `/t/NAME/`. Doesn't change any other page |

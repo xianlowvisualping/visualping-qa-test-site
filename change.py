@@ -71,6 +71,7 @@ DEFAULT_STATE = {
     ],
     "pdf_version": 1,
     "pdf_text": "This PDF changes only when you run the pdf command.",
+    "pdf_page_edits": {},
     "js_message": "This message was rendered by JavaScript.",
     "long_note": "This note at the bottom of the long page has not changed yet.",
     "sandboxes": {},
@@ -197,6 +198,7 @@ CHANGE_COMMANDS = {
     "blog-remove": "remove the last blog post page (it then returns 404)",
     "blog-edit": "N TEXT  change a blog post's body",
     "pdf": "TEXT  rewrite the PDF (plain ASCII)",
+    "pdf-page": f"N  rewrite only page N of the PDF (1-{sitegen.PDF_PAGES})",
     "js-message": "TEXT  change the JS-rendered message on /js/",
     "long-note": "TEXT  change the line at the bottom of /long/",
     "sandbox-create": "NAME  create /t/NAME/, a fresh home page copy owned by one test",
@@ -204,7 +206,7 @@ CHANGE_COMMANDS = {
     "sandbox-list": "list sandboxes (changes nothing; also works as a workflow run)",
 }
 # Commands that only make sense on the shared site, not inside a sandbox.
-SITE_ONLY = {"blog-add", "blog-remove", "blog-edit", "pdf", "js-message", "long-note",
+SITE_ONLY = {"blog-add", "blog-remove", "blog-edit", "pdf", "pdf-page", "js-message", "long-note",
              "sandbox-create", "sandbox-delete"}
 # Commands that change nothing at all.
 READ_ONLY = {"sandbox-list"}
@@ -331,6 +333,10 @@ def apply(cmd, a, page, state, sandbox):
         need(1)
         state["pdf_text"] = clean_text(a[0], ascii_only=True)
         state["pdf_version"] += 1
+    elif cmd == "pdf-page":
+        need(1)
+        n = str(clean_int(a[0], 1, sitegen.PDF_PAGES, "page"))
+        state["pdf_page_edits"] = {**state["pdf_page_edits"], n: state["pdf_page_edits"].get(n, 0) + 1}
     elif cmd == "sandbox-create":
         need(1)
         name = clean_sandbox_name(a[0])
