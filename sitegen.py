@@ -287,7 +287,7 @@ def pdf_escape(text):
     return text.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
 
 
-PDF_PAGES = 1000
+PDF_PAGES = 600
 
 PDF_WORDS = (
     "widget gadget gizmo sprocket module sensor bracket adapter cable panel "

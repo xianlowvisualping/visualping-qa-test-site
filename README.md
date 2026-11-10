@@ -16,7 +16,7 @@ Live site: https://xianlowvisualping.github.io/visualping-qa-test-site/
 | `/t/NAME/` | A **sandbox**: a private copy of the home page plus its own table, owned by one test (see below) |
 | `/long/` | 60 sections. Only the last line changes, for full-page screenshot and scroll tests |
 | `/redirect/` | Meta-refresh redirect to `/products/` |
-| `/files/report.pdf` | A 1000-page PDF of text and tables (about 1.5 MB) that changes only with the `pdf` command |
+| `/files/report.pdf` | A 600-page PDF of text and tables (about 0.9 MB) that changes only with the `pdf` command |
 | any missing path | Custom 404 page, served with a real 404 status |
 
 Each page changes only when its own content changes. **The exception is the home page footer** ("Change #N · Last updated"), which updates on every change. To test that a monitor ignores unrelated changes, scope it to one element (for example `#price`), then run `touch`.
