@@ -388,13 +388,29 @@ def _pdf_page(rng, page_no, s):
     return "\n".join(ops)
 
 
+# Pages 1-600 start from the filler of PDF version 3. Each later pdf command
+# rewrites about PDF_CHANGE_SHARE of the pages, picked at random, so changes are
+# spread through the document instead of replacing all of it.
+PDF_BASE_VERSION = 3
+PDF_BASE_SEED = "3|Revenue rose to 1620 units in Q4"
+PDF_CHANGE_SHARE = 0.5
+
+
+def _pdf_rewrites(page_no, version):
+    """How many pdf commands since PDF_BASE_VERSION rewrote this page."""
+    return sum(random.Random(f"pick|{v}|{page_no}").random() < PDF_CHANGE_SHARE
+               for v in range(PDF_BASE_VERSION + 1, version + 1))
+
+
 def make_pdf(s):
     """A PDF_PAGES-page report with text and tables, written by hand (no dependencies).
 
-    The filler content is seeded from pdf_version and pdf_text, so the file is
-    byte-identical across rebuilds and changes only with the pdf command.
+    Seeded, so the file is byte-identical across rebuilds and changes only with
+    the pdf command. That command changes page 1's header and rewrites about
+    half the other pages (random ones); the rest stay as they were.
     """
-    rng = random.Random(f"{int(s['pdf_version'])}|{s['pdf_text']}")
+    version = int(s["pdf_version"])
+    rng = random.Random(PDF_BASE_SEED)
     first_page = 5
     kids = " ".join(f"{first_page + 2 * i} 0 R" for i in range(PDF_PAGES))
     objects = [
@@ -409,7 +425,11 @@ def make_pdf(s):
             "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
             "/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> "
             f"/Contents {content_id} 0 R >>")
-        data = zlib.compress(_pdf_page(rng, i + 1, s).encode("latin-1"), 9)
+        page = _pdf_page(rng, i + 1, s)  # always advances the base stream
+        rewrites = _pdf_rewrites(i + 1, version)
+        if rewrites:
+            page = _pdf_page(random.Random(f"page|{i + 1}|{rewrites}"), i + 1, s)
+        data = zlib.compress(page.encode("latin-1"), 9)
         objects.append((f"<< /Length {len(data)} /Filter /FlateDecode >>\nstream\n"
                         .encode("latin-1") + data + b"\nendstream"))
     out = bytearray(b"%PDF-1.4\n")
