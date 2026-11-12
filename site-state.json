@@ -1,6 +1,6 @@
 {
-  "change_number": 23,
-  "last_updated": "2026-11-12 22:15 UTC",
+  "change_number": 24,
+  "last_updated": "2026-11-12 22:30 UTC",
   "headline": "Acme Test Store",
   "announcement": "Welcome! This page exists only for Visualping QA testing.",
   "keyword": "",
@@ -38,8 +38,8 @@
       "body": "This is the second test blog post."
     }
   ],
-  "pdf_version": 3,
-  "pdf_text": "Product recall notice for batch 7",
+  "pdf_version": 4,
+  "pdf_text": "Line of test text for a long PDF update Line of test text for a long PDF update Line of test text for a long PDF update Line of test text for a long PDF update Line of test text for a long PDF up",
   "pdf_page_edits": {},
   "js_message": "This message was rendered by JavaScript.",
   "long_note": "This note at the bottom of the long page has not changed yet.",
@@ -77,12 +77,12 @@
     }
   },
   "lastmod": {
-    "": "2026-11-12T22:15:27Z",
+    "": "2026-11-12T22:30:07Z",
     "products/": "2026-11-05T18:34:43Z",
     "blog/": "2026-11-05T18:34:43Z",
     "js/": "2026-11-05T18:34:43Z",
     "long/": "2026-11-05T18:34:43Z",
-    "files/report.pdf": "2026-11-12T22:15:27Z",
+    "files/report.pdf": "2026-11-12T22:30:07Z",
     "blog/post-1/": "2026-11-05T18:34:43Z",
     "blog/post-2/": "2026-11-05T18:34:43Z"
   }
