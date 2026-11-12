@@ -43,39 +43,7 @@
   "pdf_page_edits": {},
   "js_message": "This message was rendered by JavaScript.",
   "long_note": "This note at the bottom of the long page has not changed yet.",
-  "sandboxes": {
-    "qa-1108-06-1109": {
-      "change_number": 2,
-      "last_updated": "2026-11-09 19:18 UTC",
-      "headline": "Spring sale",
-      "announcement": "Welcome! This page exists only for Visualping QA testing.",
-      "keyword": "",
-      "price": "24.99",
-      "in_stock": true,
-      "quantity": 42,
-      "percent": "10",
-      "image": "a",
-      "theme": "blue",
-      "news": [
-        "Store opened for testing",
-        "Free shipping on all test orders"
-      ],
-      "table": [
-        {
-          "name": "Blue widget",
-          "price": "19.99"
-        },
-        {
-          "name": "Green gadget",
-          "price": "34.50"
-        },
-        {
-          "name": "Red gizmo",
-          "price": "7.25"
-        }
-      ]
-    }
-  },
+  "sandboxes": {},
   "lastmod": {
     "": "2026-11-12T22:30:07Z",
     "products/": "2026-11-05T18:34:43Z",
