@@ -45,9 +45,9 @@
   "long_note": "This note at the bottom of the long page has not changed yet.",
   "sandboxes": {
     "qa-1115-53-1117": {
-      "change_number": 1,
-      "last_updated": "2026-11-17 16:32 UTC",
-      "headline": "Acme Test Store",
+      "change_number": 2,
+      "last_updated": "2026-11-17 16:44 UTC",
+      "headline": "Spring sale",
       "announcement": "Welcome! This page exists only for Visualping QA testing.",
       "keyword": "",
       "price": "19.99",
